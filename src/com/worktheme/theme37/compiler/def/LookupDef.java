@@ -6,7 +6,7 @@ package com.worktheme.theme37.compiler.def;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.jdom.Element;
+import org.jdom2.Element;
 
 public class LookupDef {
 	private final String id;

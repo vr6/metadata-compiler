@@ -3,7 +3,7 @@
  *******************************************************************************/
 package com.worktheme.theme37.compiler.def;
 
-import org.jdom.Element;
+import org.jdom2.Element;
 
 import com.worktheme.theme37.compiler.Database;
 import com.worktheme.theme37.compiler.PendingUpdate;
