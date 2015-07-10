@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+Changes:
+
+- there are no models and mcols
+- tables such as tz_work are extensible
+- extensible tables recieve custome cols in addition to their standard cols
+- tz_obj will have a new col called basetbl
+- when new obj is added and id basetbl is non-null, the new table will not be created
+- the class TableExt will have a Table as a member (basetbl)
+- tableext will return the same id (physical tbl name). getTableById to be removed
+- removed columns will be marked as removed in tz_col. Actual table cols won't be removed
+- when the removed cols in a table exceeds 100 the table is recreated using active cols
+
+- all sync tbles will have a opdata col.
+- opdata col will have the custom data from sender for recieved objs.
+- before the work is sent to a worker, a query is sent to get the worker's template
+- customer fills the worker template by manually or mappping to his own custom cols
+- customer also adds his own custom cols as opdatda
+
+-->
+
+<om org="tz">
+	<obj tagName="config" id="tz_config" name="Config" type="systbl">
+		<col id="defcur" name="Currency" dataType="dropdown" lookupData="currency" defValue="0"/>
+		<col id="urworkrole" name="Your Work Role" dataType="dropdown" lookupData="urworkrole" defValue="0"/>
+	</obj>
+	<obj tagName="coltype" id="tz_coltype" name="Column type" type="systbl">
+		<col id="id" name="Id" dataType="text" readonly="true"/>
+		<col id="sqltype" name="SQL type" dataType="number"/>
+	</obj>
+	<obj tagName="lookupdata" id="tz_lookup" name="Lookup data" type="systbl">
+	</obj>
+	<obj tagName="folder" icon="folder2" id="tz_folder" name="Folder" type="systbl">
+		<fkey id="folder" obj2="tz_folder" name="Folder" id2="folders" addtype2="Free Only" addCol="false" dataType="reference"/>
+	</obj>
+	<obj tagName="obj" id="tz_obj" icon="list" name="List" type="systbl">  
+		<col id="model" name="Model" dataType="dropdown" lookupData="modeltype" defValue="1"/>
+		<col id="urworkrole" name="Your Role" dataType="dropdown" showIf="model.Work" lookupData="urworkrole"/>
+		<col id="defcur" name="Currency" dataType="dropdown" lookupData="currency" showIf="model.Work" defValue="0"/>
+		<fkey id="folder" obj2="tz_folder" name="Folder" addtype2="Free Only" addCol="false" dataType="reference"/>
+	</obj>
+	<obj tagName="col" id="tz_col" name="Field" type="systbl">
+		<fkey id="dataType" obj2="tz_coltype" required="true" name="Data type" defValue="text" dataType="reference"/>
+		<fkey id="obj" obj2="tz_obj" id2="objcols" name="List" name2="Fields" addtype2="New Only" readonly="true" dataType="reference"/>
+		<col id="desc" name="Hint" dataType="text"/>
+		<col id="required" name="Required?" dataType="checkbox"/>
+		<col id="hidden" name="Hidden?" dataType="checkbox"/>
+		<col id="listCol" name="Show in list view?" dataType="checkbox"/>
+		<col id="defValue" name="Default value" dataType="text"/>
+	</obj>
+	<obj tagName="rel" id="tz_rel" name="Reference" type="systbl">
+		<fkey id="obj" obj2="tz_obj" id2="objrels" required="true" name="List-1" name2="References" addtype2="New Only" dataType="reference"/>
+		<fkey id="obj2" obj2="tz_obj" name="List-2" required="true" name2="Collections" addtype2="New Only" dataType="reference" hidden2="true"/>
+		<col id="type" name="Reference type" dataType="dropdown" lookupData="reltype" required="true" defValue="0"/>
+		<col id="addtype" name="Add type" dataType="dropdown" lookupData="reladdtype" required="true" defValue="0"/>
+		<col id="readonly" name="Read only?" dataType="checkbox"/>
+		<col id="listCol" name="Show in list view?" dataType="checkbox"/>
+	</obj>
+	<obj tagName="shortcut" id="tz_shortcut" icon="form" name="Shortcut" type="systbl">
+		<col id="type" name="Type" dataType="dropdown" lookupData="shortcuttype" hidden="true"/>
+		<col id="obj" hidden="true" name="Object" dataType="number" readonly="true"/>
+		<col id="rel" hidden="true" name="Relation" dataType="number" readonly="true"/>
+		<col id="item" hidden="true" name="Row Id" dataType="number" readonly="true"/>
+		<fkey id="orderby" obj2="tz_col" name="Order by" obj2Filter="obj2.obj=obj" dataType="reference"/>
+		<col id="desc" name="Reverse order?" dataType="checkbox"/>
+		<fkey id="folder" obj2="tz_folder" name="Folder" addtype2="Free Only" dataType="reference"/>
+		<col id="meta" name="Metadata?" hidden="true" dataType="checkbox"/>
+	</obj>
+<!-- ================================== -->	
+	<obj icon="list" id="tz_project" name="Project">
+		<col id="refcode" name="Ref code" dataType="text" readonly="true"/>
+		<col id="startdt" name="Start dt" dataType="date"/>
+		<col id="enddt" name="End dt" dataType="date"/>
+		<col id="targetdt" name="Target dt" dataType="date"/>
+	</obj>	
+	<obj icon="list" id="tz_session" name="Work Session" type="apptbl" model="session">
+		<col id="starttm" name="Start Time" dataType="time"/>
+		<col id="endtm" name="End Time" dataType="time"/>
+		<col id="startdt" name="Start Date" dataType="date"/>
+		<col id="enddt" name="End Date" dataType="date"/>
+		<col id="recur" name="Recurrence" dataType="dropdown" lookupData="recurtype"/>
+	</obj>
+	<obj icon="list" id="tz_people" name="People" type="apptbl" model="people">
+		<col id="contact" name="Contact" dataType="content" contentType="contact"/>
+	</obj>
+	<obj icon="list" id="tz_work" name="Work" type="apptbl" model="work">
+		<col id="worktype" name="Work Type" dataType="dropdown" lookupData="worktype" readonly="true" hidden="true"/>
+		<col id="workrole" name="Work Role" dataType="dropdown" lookupData="urworkrole" readonly="true" hidden="true"/>
+		<col id="targetdt" name="Target dt" dataType="date"/>
+		<col id="progress" name="Progress" dataType="percent" addCol="false" readonly="true"/>
+		<col id="value" name="Value" dataType="money" showIf="worktype.Contract Work"/>
+
+		<fkey id="customer" showIf="worktype.Contract Work" obj2="tz_people" name="Customer" name2="Works (Customer)" dataType="reference"/>
+		<fkey id="contractor" showIf="worktype.Contract Work" obj2="tz_people" name="Contractor" name2="Works (Delivery)" dataType="reference"/>
+		<fkey id="supervisor" showIf="worktype.Team Work" obj2="tz_people" name="Contractor" name2="Works (Delivery)" dataType="reference"/>
+		
+		<col id="engstatus" name="Engage Status" dataType="dropdown" lookupData="engstatus" addCol="false" readonly="true"/>
+		<col id="progstatus" name="Progress" dataType="dropdown" lookupData="progtatus" addCol="false" readonly="true"/>
+		<col id="syncstatus" name="Sync Status" dataType="dropdown" lookupData="syncstatus" addCol="false" readonly="true"/>
+		<col id="paystatus" showIf="worktype.Contract Work" name="Pay Status" dataType="dropdown" lookupData="paystatus" addCol="false" readonly="true"/>
+		<col id="msgstatus" name="Message Status" dataType="dropdown" lookupData="status" addCol="false" readonly="true"/>
+		<col id="slipstatus" name="Slippage Status" dataType="dropdown" lookupData="status" addCol="false" readonly="true"/>
+		<col id="coststatus" showIf="workrole.Contractor" name="Cost Status" dataType="dropdown" lookupData="status" addCol="false" readonly="true"/>
+		
+		<col id="startdt" name="Start dt" dataType="date" addCol="false" readonly="true"/>
+		<col id="descr" name="Description" dataType="text"/>
+		<fkey id="project" obj2="tz_project" name="Project" addtype2="Free Only" dataType="reference"/>
+		<col id="enddt" name="End dt" dataType="date" addCol="false" readonly="true"/>
+		<col id="refcode" name="Ref code" dataType="text" readonly="true" addCol="false"/>
+		<fkey id="mainwork" obj2="tz_work" name="Main Work" name2="Subworks" dataType="reference"/>
+		<rel id="team" showIf="worktype.Team Work" id2="works" obj="tz_work" obj2="tz_people" name="Team" name2="Works" dataType="relation"/>
+		<rel id="sessions" showIf="worktype.Team Work" id2="works" obj="tz_work" obj2="tz_session" name="Work Sessions" name2="Works" dataType="relation"/>
+	</obj>
+	<obj icon="list" id="tz_txn" name="Payment" type="apptbl" model="payment">
+		<col id="refcode" name="Ref code" dataType="text" readonly="true" addCol="false"/>
+		<col id="value" name="Amount" required="true" dataType="money"/>
+		<col id="txntype" name="Paid by" dataType="dropdown" lookupData="paymenttype"/>
+		<col id="txndt" name="Payment date" dataType="date"/>
+		<fkey id="work" obj2="tz_work" name="Work" name2="Payments" dataType="reference"/>
+		<col id="txndir" name="Payment Type" dataType="dropdown" lookupData="txndir"/>
+		<fkey id="otherparty" obj2="tz_people" name="Person" name2="Payments" dataType="reference"/>
+	</obj>
+<!-- ================================== -->	
+	<obj icon="list" id="tz_message" name="Message">
+		<col id="responsemsg" name="Response Msg?" dataType="checkbox"/>
+		<col id="msgtype" name="Message Type" dataType="dropdown" lookupData="messagetype"/>
+		<col id="msgseq" name="Msg No." dataType="number" addCol="false"/>
+		<col id="refmsgseq" name="Response To" dataType="number" readonly="true" addCol="false"/>
+		<col id="responseval" name="Response" dataType="checkbox"/>
+		<fkey id="work" obj2="tz_work" name="Work" name2="Messages" dataType="reference"/>
+		<fkey id="from" obj2="tz_people" name="From" dataType="reference"/>
+		<rel id="sentto" id2="msgs" obj="tz_message" obj2="tz_people" name="Recipients" name2="Messages" dataType="relation"/>
+
+		<col id="detail" name="Detail" dataType="text" addCol="false"/>
+		<col id="msgdt" name="Msg Date" readonly="true" dataType="timestamp" addCol="false"/>
+		<col id="syncdir" name="Outgoing?" defValue="true" dataType="checkbox"/>
+		<col id="phone" name="Phone" dataType="text" addCol="false"/>
+		<col id="msgraw" name="Msg Raw" dataType="text" addCol="false"/>
+	</obj>
+	<obj icon="list" id="tz_report" name="Report" type="apptbl">
+		<col id="restype" name="Results type" dataType="dropdown" lookupData="resulttype"/>
+<!--		<fkey id="reslist" name="List/Count of" obj2="tz_obj" dataType="reference"/>  -->
+		<col id="rescomp" name="Compute for" dataType="dropdown" hideIf="restype.List,restype.Count,!reslist"/>
+		<fkey id="otherparty" obj2="tz_people" name="People" dataType="reference"/>
+		<fkey id="work" obj2="tz_work" name="Work" name2="Reports" dataType="reference"/>
+		<col id="startdt" name="Date range start" dataType="date"/>
+		<col id="enddt" name="Date range end" dataType="date"/>		
+		<fkey id="project" obj2="tz_project" name="Project" dataType="reference"/>
+	</obj>
+	<obj icon="list" id="tz_engage" name="Work Engagement">
+		<fkey id="work" obj2="tz_work" name="Work" name2="Engagements" dataType="reference"/>
+		<fkey id="team" obj2="tz_people" name="Team" name2="Engagements" dataType="reference"/>
+		<col id="startdt" name="Start Date" dataType="date"/>
+		<col id="enddt" name="End Date" dataType="date"/>
+	</obj>
+<!--
+
+          /\
+         /  \
+  ______/    \______
+  \                / 
+    \            / 
+      \        / 
+     /    ,    \
+    /  ,.' '.,  \      
+   *^``       ``^*
+
+
+-->
+</om>
